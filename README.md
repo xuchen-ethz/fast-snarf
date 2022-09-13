@@ -1,6 +1,7 @@
 # Fast-SNARF: A Fast and Universal Deformer for Articulated Neural Volumetric Representations
 
-<img src="assets/teaser.gif" /> 
+[![Watch the video](assets/teaser.gif)](https://dataset.ait.ethz.ch/downloads/fast-snarf/teaser.mp4)
+
 
 
 This repo will contain the code for our new project *Fast-SNARF:A Fast and Universal Deformer for Articulated Neural Volumetric Representations*. 
