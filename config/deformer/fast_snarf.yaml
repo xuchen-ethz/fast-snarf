@@ -1,0 +1,25 @@
+model:
+  deformer:
+    _target_: lib.model.fast_snarf.ForwardDeformer
+    opt:
+      align_corners: true
+      skinning_mode: mlp
+      res: 64
+      z_ratio: 4
+      softmax_mode: softmax
+      global_scale: 1.2
+      soft_blend: 20
+      cvg: 1e-4
+      dvg: 5e-1
+      network:
+        d_in: 3
+        d_out: 24
+        depth: 4
+        width: 128
+        multires: 0
+        skip_layer: []
+        cond_layer: []
+        dim_cond_embed: 0
+        weight_norm: true
+        geometric_init: false
+        bias: 1

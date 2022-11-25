@@ -1,0 +1,18 @@
+model:
+  deformer:
+    _target_: lib.model.snarf.ForwardDeformer
+    opt:
+      softmax_mode: softmax
+      soft_blend: 20
+      network:
+        d_in: 3
+        d_out: 24
+        depth: 4
+        width: 128
+        multires: 0
+        skip_layer: []
+        cond_layer: []
+        dim_cond_embed: 0
+        weight_norm: true
+        geometric_init: false
+        bias: 1
