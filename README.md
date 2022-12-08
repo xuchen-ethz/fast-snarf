@@ -11,7 +11,7 @@ In this repo, we apply Fast-SNARF to learn animatable avatars from 3D data. More
 Clone this repo:
 ```
 git clone https://github.com/xuchen-ethz/fast-snarf.git
-cd snarf
+cd fast-snarf
 ```
 
 Install environment:
