@@ -107,10 +107,11 @@ python demo.py expname=cape subject=3375 demo.motion_path=data/aist_demo/seqs +e
 If you find our code or paper useful, please cite as
 ```
 @article{chen2022fastsnarf,
-  title={Fast-SNARF: A Fast Deformer for Articulated Neural Fields},
-  author={Chen, Xu and Jiang, Tianjian and Song, Jie and Rietmann, Max and Geiger, Andreas and Black, Michael J and Hilliges Otmar},
-  journal={arXiv},
-  year={2022}
+  author    = {Xu Chen and Tianjian Jiang and Jie Song and Max Rietmann and Andreas Geiger and Michael J. Black and Otmar Hilliges},
+  title     = {{Fast-SNARF}: {A} Fast Deformer for Articulated Neural Fields},
+  journal   = {arXiv},
+  volume    = {abs/2211.15601},
+  year      = {2022},
 }
 
 @inproceedings{chen2021snarf,
