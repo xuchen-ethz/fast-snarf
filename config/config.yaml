@@ -36,7 +36,7 @@ model:
   optim:
     lr: 1e-3
   soft_blend: 5
-  nepochs_pretrain: 0
+  nepochs_pretrain: 1
   nepochs_tv: 200
   lambda_bone_occ: 1
   lambda_bone_w: 10

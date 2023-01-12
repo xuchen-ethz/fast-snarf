@@ -36,16 +36,7 @@ class SNARFModel(pl.LightningModule):
 
     def configure_optimizers(self):
 
-        def is_included(n): 
-            if 'lbs' in n:
-                return False
-            return True
-
-        grouped_parameters = [
-            {"params": [p for n, p in list(self.named_parameters()) if is_included(n)], 'lr': self.opt.optim.lr},
-        ]
-
-        optimizer = torch.optim.Adam(grouped_parameters, lr=self.opt.optim.lr)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.opt.optim.lr)
         
         return optimizer
 
@@ -80,8 +71,6 @@ class SNARFModel(pl.LightningModule):
                 end.record()
                 torch.cuda.synchronize()
                 time['time_deformer'] = start.elapsed_time(end)
-
-            # print(f"deformer: {start.elapsed_time(end):.3f} ms")
         
             mask = intermediates['valid_ids']
 
