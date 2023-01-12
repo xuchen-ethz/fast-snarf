@@ -97,8 +97,6 @@ class SNARFModel(pl.LightningModule):
                 time['n_corres_bbox'] = mask[:,:num_point//2].float().sum().item()/(num_batch*num_point/2)
                 time['n_corres_surf'] = mask[:,num_point//2:].float().sum().item()/(num_batch*num_point/2)
 
-            pts_c = ((pts_c + self.deformer.offset) * self.deformer.scale+1)/2
-
             occ_pd = self.network(pts_c, cond, mask=mask.reshape(num_batch*num_point * num_init)).reshape(num_batch, num_point, num_init)
 
             if calc_time:
