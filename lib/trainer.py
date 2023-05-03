@@ -7,7 +7,7 @@ from lib.model.smpl import SMPLServer
 from lib.model.sample import PointOnBones
 from lib.model.network import ImplicitNetwork
 from lib.model.metrics import calculate_iou
-from lib.utils.meshing import generate_mesh
+from lib.utils.meshing import generate_mesh, generate_sdf
 from lib.model.helpers import masked_softmax, tv_loss, skinning
 from lib.utils.render import render_trimesh, render_joint, weights2colors
 
@@ -271,7 +271,19 @@ class SNARFModel(pl.LightningModule):
             }
         
 
-        return results    
+        return results
+    
+    def sdf(self, data, res=256, res_up=0):
+        smpl_verts = data['smpl_verts'][[0]]
+        occ_func = lambda x: self.forward(x, data['smpl_tfs'][[0]], data['smpl_params'][[0]], eval_mode=True).reshape(-1, 1)
+        points, values, res = generate_sdf(occ_func, smpl_verts.squeeze(0), res_init=res, res_up=res_up)
+        results = {
+            'res': res,
+            'points': points,
+            'values': values,
+        }
+        
+        return results
 
     def extract_mesh(self, smpl_verts, smpl_tfs, smpl_params, canonical=False, with_weights=False, res_up=2, fast_mode=False):
         '''

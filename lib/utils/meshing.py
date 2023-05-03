@@ -5,15 +5,7 @@ from lib.libmise import mise
 import trimesh
 
 ''' Code adapted from NASA https://github.com/tensorflow/graphics/blob/master/tensorflow_graphics/projects/nasa/lib/utils.py'''
-def generate_mesh(func, verts, level_set=0, res_init=32, res_up=3):
-
-    scale = 1.1  # Scale of the padded bbox regarding the tight one.
-
-    verts = verts.data.cpu().numpy()
-    gt_bbox = np.stack([verts.min(axis=0), verts.max(axis=0)], axis=0)
-    gt_center = (gt_bbox[0] + gt_bbox[1]) * 0.5
-    gt_scale = (gt_bbox[1] - gt_bbox[0]).max()
-
+def get_mesh_extractor(func, level_set, res_init, res_up, scale, gt_scale, gt_center):
     mesh_extractor = mise.MISE(res_init, res_up, level_set)
     points = mesh_extractor.query()
     
@@ -33,6 +25,19 @@ def generate_mesh(func, verts, level_set=0, res_init=32, res_up=3):
             mesh_extractor.update(orig_points, values)
             
             points = mesh_extractor.query()
+
+    return mesh_extractor
+
+
+def generate_mesh(func, verts, level_set=0, res_init=32, res_up=3):
+    scale = 1.1  # Scale of the padded bbox regarding the tight one.
+
+    verts = verts.data.cpu().numpy()
+    gt_bbox = np.stack([verts.min(axis=0), verts.max(axis=0)], axis=0)
+    gt_center = (gt_bbox[0] + gt_bbox[1]) * 0.5
+    gt_scale = (gt_bbox[1] - gt_bbox[0]).max()
+
+    mesh_extractor = get_mesh_extractor(func, level_set, res_init, res_up, scale, gt_scale, gt_center)
 
     value_grid = mesh_extractor.to_dense()
     # value_grid = np.pad(value_grid, 1, "constant", constant_values=-1e6)
@@ -59,3 +64,32 @@ def generate_mesh(func, verts, level_set=0, res_init=32, res_up=3):
     meshexport = max_comp
 
     return meshexport
+
+
+def generate_sdf(func, verts, level_set=0, res_init=32, res_up=3):
+    scale = 1.1  # Scale of the padded bbox regarding the tight one.
+
+    # Compute sparse grid.
+    verts = verts.data.cpu().numpy()
+    gt_bbox = np.stack([verts.min(axis=0), verts.max(axis=0)], axis=0)
+    gt_center = (gt_bbox[0] + gt_bbox[1]) * 0.5
+    gt_scale = (gt_bbox[1] - gt_bbox[0]).max()
+
+    mesh_extractor = get_mesh_extractor(func, level_set, res_init, res_up, scale, gt_scale, gt_center)
+    
+    # Compute size of the grid.
+    res = res_init * (1 << res_up)
+    size = res + 1
+
+    # Get sparse points.
+    points, values = mesh_extractor.get_points()
+    assert np.all(points <= 1024)
+    
+    # Pack point coordinates in a single int32
+    points = points.astype(np.int32)
+    points = points[:, 2] * (size * size) + points[:, 1] * size + points[:, 0]
+
+    # Convert SDF values to float32.
+    values = values.astype(np.float32)
+
+    return points, values, res

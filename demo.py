@@ -73,32 +73,45 @@ def main(opt):
     if 'betas' in meta_info:
         smpl_params_all[:,-10:] = torch.tensor(meta_info['betas']).type_as(smpl_params_all)
 
+    if opt.demo.remote_viewer:
+        from aitviewer.remote.viewer import RemoteViewer
+        from aitviewer.remote.message import Message
+        viewer = RemoteViewer(opt.demo.remote_viewer_ip)
+        if not viewer.connected:
+            exit(1)
+
     # generate data batch
     images = []
     for i in trange(smpl_params_all.shape[0]):
-
         name = '%d_%s_%04d'%(opt.subject, os.path.basename(motion_path)[:-4],i*opt.demo.every_n_frames)
         smpl_params = smpl_params_all[[i]]
         data = model.smpl_server.forward(smpl_params, absolute=True)
         data['smpl_thetas'] = smpl_params[:, 4:76]
         data['smpl_params'] = smpl_params
 
-        results = model.plot(data, res=opt.demo.resolution, verbose=opt.demo.verbose, fast_mode=opt.demo.fast_mode)
+        if opt.demo.remote_viewer:
+            results = model.sdf(data, res=opt.demo.resolution, res_up=opt.demo.res_up)
+            viewer.send_message(Message.USER_MESSAGE, None, data=results)
+        else:
+            results = model.plot(data, res=opt.demo.resolution, verbose=opt.demo.verbose, fast_mode=opt.demo.fast_mode)
 
-        images.append(results['img_all'])
+            images.append(results['img_all'])
 
-        if not os.path.exists('images'):
-            os.makedirs('images')
-        imageio.imwrite('images/%s.png'%name, results['img_all'])
+            if not os.path.exists('images'):
+                os.makedirs('images')
+            imageio.imwrite('images/%s.png'%name, results['img_all'])
 
-        if opt.demo.save_mesh:
-            if not os.path.exists('meshes'):
-                os.makedirs('meshes')
-            results['mesh_def'].export('meshes/%s_def.ply'%name)
-            if opt.demo.verbose:
-                results['mesh_cano'].export('meshes/%s_cano.ply'%name)
-
-    imageio.mimsave('%s.mp4'%opt.demo.output_video_name, images)
+            if opt.demo.save_mesh:
+                if not os.path.exists('meshes'):
+                    os.makedirs('meshes')
+                results['mesh_def'].export('meshes/%s_def.ply'%name)
+                if opt.demo.verbose:
+                    results['mesh_cano'].export('meshes/%s_cano.ply'%name)
+        
+    if opt.demo.remote_viewer:
+        viewer.close_connection()
+    else:
+        imageio.mimsave('%s.mp4'%opt.demo.output_video_name, images)
 
 if __name__ == '__main__':
     main()

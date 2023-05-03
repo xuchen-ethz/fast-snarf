@@ -30,6 +30,49 @@ cdef inline unsigned long vec_to_idx(Vector3D coord, long resolution):
     return idx
 
 
+def to_dense(int[:] points, float[:] values, int res):
+    """Output dense matrix at highest resolution."""
+    out_array = np.full((res + 1,) * 3, np.nan, np.float32)
+    cdef float[:, :, :] out_view = out_array
+    cdef GridPoint point
+    cdef int i, j, k
+    
+    for i in range(len(points)):
+        # Take voxel for which points is upper left corner
+        p = points[i]
+        v = values[i]
+
+        x = p % (res + 1)
+        y = (p % ((res + 1) * (res + 1))) // (res + 1)
+        z = p // ((res + 1) * (res + 1))
+
+        out_view[x, y, z] = v
+
+    # Complete along x axis
+    for i in range(1, res + 1):
+        for j in range(res + 1):
+            for k in range(res + 1):
+                if isnan(out_view[i, j, k]):
+                    out_view[i, j, k] = out_view[i-1, j, k]
+
+    # Complete along y axis
+    for i in range(res + 1):
+        for j in range(1, res + 1):
+            for k in range(res + 1):
+                if isnan(out_view[i, j, k]):
+                    out_view[i, j, k] = out_view[i, j-1, k]
+
+
+    # Complete along z axis
+    for i in range(res + 1):
+        for j in range(res + 1):
+            for k in range(1, res + 1):
+                if isnan(out_view[i, j, k]):
+                    out_view[i, j, k] = out_view[i, j, k-1]
+                assert(not isnan(out_view[i, j, k]))
+    return out_array
+
+
 cdef class MISE:
     cdef vector[Voxel] voxels
     cdef vector[GridPoint] grid_points

@@ -45,8 +45,11 @@ model:
 demo:
   motion_path: data/aist_demo/seqs
   resolution: 256
+  res_up: 0
   save_mesh: false
   every_n_frames: 2
   output_video_name: aist
   verbose: false
   fast_mode: false
+  remote_viewer: false
+  remote_viewer_ip: "127.0.0.1"

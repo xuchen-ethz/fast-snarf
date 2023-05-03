@@ -103,6 +103,25 @@ You can use the trained model to generate animation (same as in Quick Start):
 python demo.py expname=cape subject=3375 demo.motion_path=data/aist_demo/seqs +experiments=cape
 ```
 
+
+# Running the demo with the aitviewer
+You can run the demo streaming data to a remote [aitviewer](https://github.com/eth-ait/aitviewer) by running the following commands:
+
+Install the viewer:
+```
+pip install aitviewer
+```
+
+Run the viewer (this also must be run from the conda environment to access `libmise`):
+```
+python view.py
+```
+
+From a different shell run the demo connecting to the viewer on localhost:
+```
+python demo.py expname=cape subject=3375 demo.motion_path=data/aist_demo/seqs +experiments=cape demo.remote_viewer=True demo.resolution=32 demo.res_up=2
+```
+
 # Reference
 If you find our code or paper useful, please cite as
 ```
