@@ -8,6 +8,7 @@ Given a single scan, this small project
  - turns the scan into a rigged character that can be animated,
  - takes around a minute,
  - can handle loose clothing, such as skirts
+
 This is done via canonicalizing the scan into a rest pose using forward skinning and the SMPL skinning weights diffused in the canonical volume.
 
 Run the script in the main folder of Fast-SNARF via
