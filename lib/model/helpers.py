@@ -5,7 +5,81 @@ import numpy as np
 import torch.nn.functional as F
 from torch import einsum
 import pytorch3d.ops as ops
+import glob
+import os
+from torch.autograd import grad
 
+def load_motion_sequence(motion_path, skip=2, device='cpu'):
+
+    smplx_to_smpl = list(range(66)) + [72, 73, 74, 117, 118, 119]  # SMPLH to SMPL
+
+    if os.path.isdir(motion_path):
+        motion_files = sorted(glob.glob(os.path.join(motion_path, '*.npz')))
+        smpl_params_all = []
+        for f in motion_files:
+            f = np.load(f)
+            smpl_params = np.zeros(86)
+            smpl_params[0], smpl_params[4:76] = 1, f['pose']
+            smpl_params = torch.tensor(smpl_params)
+            smpl_params_all.append(smpl_params)
+        smpl_params_all = torch.stack(smpl_params_all)
+
+    elif '.npz' in motion_path:
+        f = np.load(motion_path)
+        smpl_params_all = np.zeros( (f['poses'].shape[0], 86) )
+        smpl_params_all[:,0] = 1
+        if f['poses'].shape[-1] == 72:
+            smpl_params_all[:, 4:76] = f['poses']
+        elif f['poses'].shape[-1] == 156:
+            smpl_params_all[:, 4:76] = f['poses'][:,smplx_to_smpl]
+        
+        root_abs = smpl_params_all[0, 4:7].copy()
+        for i in range(smpl_params_all.shape[0]):
+            smpl_params_all[i, 4:7] = rectify_pose(smpl_params_all[i, 4:7], root_abs)
+                
+        smpl_params_all = torch.tensor(smpl_params_all).float()
+        smpl_params_all[:, 4+3*20:4+3*23] = 0 # remove hand pose
+    return smpl_params_all.float().cuda()[::skip]
+
+def gradient(inputs, outputs):
+    d_points = torch.ones_like(outputs, requires_grad=False, device=outputs.device)
+    points_grad = grad(
+        outputs=outputs,
+        inputs=inputs,
+        grad_outputs=d_points,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True)[0][:, -3:]
+    return points_grad
+
+def query_weights_smpl_smooth(x, smpl_verts, smpl_weights):
+    
+    distance_batch, index_batch, neighbor_points  = ops.knn_points(x.cuda(),smpl_verts.cuda().detach(), K=10, return_nn=True)
+
+    distance_batch = distance_batch[0].sqrt().clamp_(0.00003,0.1)
+    index_batch = index_batch[0]
+    weights = smpl_weights[0,index_batch]
+   
+    ws=1./distance_batch
+    ws=ws/ws.sum(-1,keepdim=True)
+    weights = (ws[:,:,None]*weights).sum(1)[None]
+
+    resolution = 64
+
+    b, c, d, h, w = 1, 24, resolution//4, resolution, resolution
+    weights = weights.permute(0,2,1).reshape(b,c,d,h,w)
+
+    # smooth weights as done in Self-Recon
+    for _ in range(20):
+        mean=(weights[:,:,2:,1:-1,1:-1]+weights[:,:,:-2,1:-1,1:-1]+\
+            weights[:,:,1:-1,2:,1:-1]+weights[:,:,1:-1,:-2,1:-1]+\
+            weights[:,:,1:-1,1:-1,2:]+weights[:,:,1:-1,1:-1,:-2])/6.0
+        weights[:,:,1:-1,1:-1,1:-1]=(weights[:,:,1:-1,1:-1,1:-1]-mean)*0.7+mean
+        sums=weights.sum(1,keepdim=True)
+        weights=weights/sums
+
+
+    return weights.detach()
 
 
 def query_weights_smpl(x, smpl_verts, smpl_weights):

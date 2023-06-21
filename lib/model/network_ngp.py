@@ -30,42 +30,30 @@ class ImplicitNetwork(torch.nn.Module):
             "n_features_per_level": 2,
             "log2_hashmap_size": 15,
             "base_resolution": 32,
-            "per_level_scale": 1.5
+            "per_level_scale": 1.5,
+            "interpolation": "Smoothstep"
         }
 
-        config_encoding = {
-            "otype": "Grid",
-            "type": "Dense",
-            "n_levels": 1,
-            "n_features_per_level": 8,
-            "base_resolution": 64,
-        }
 
-        # config_network = {
-        #     "otype": "FullyFusedMLP",
-        #     "activation": "ReLU",
-        #     "output_activation": "None",
-        #     "n_neurons": 64,
-        #     "n_hidden_layers": 2
-        # }
-        # config_encoding = {
-        #     "otype": "Frequency",
-        #     "n_frequencies": 4
-        # }
 
         config_network = {
-	        "otype": "CutlassMLP", 
+            "otype": "FullyFusedMLP",
             "activation": "ReLU",
             "output_activation": "None",
-            "n_neurons": 256,
-            "n_hidden_layers": 8
+            "n_neurons": 64,
+            "n_hidden_layers": 2
         }
         self.encoding = tcnn.Encoding(d_in, config_encoding)
-
-        self.model = tcnn.Network(self.encoding.n_output_dims+cond_dim, d_out, config_network)
         
-        # self.encoding = tcnn.Encoding(d_in, config_encoding)
+        self.model = torch.nn.Sequential(
+            *[torch.nn.Linear(self.encoding.n_output_dims, 64), torch.nn.ReLU(),
+            torch.nn.Linear(64, 64), torch.nn.ReLU(),
+            torch.nn.Linear(64, 64), torch.nn.ReLU(),
+            torch.nn.Linear(64, d_out)
+            ]
+        )
 
+        # self.encoding = tcnn.Encoding(d_in, config_encoding)
         # self.model = tcnn.Network(self.encoding.n_output_dims+cond_dim, d_out, config_network)
         
     def forward(self, input, cond, mask=None):
@@ -109,8 +97,7 @@ class ImplicitNetwork(torch.nn.Module):
 
             input = torch.cat([input, input_cond], dim=-1)
 
-        x = self.model(input).float()
-
+        x = self.model(input.float()).float()
 
         # add placeholder for masked prediction
         if mask is not None:

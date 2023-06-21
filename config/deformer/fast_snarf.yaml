@@ -11,6 +11,7 @@ model:
       soft_blend: 20
       cvg: 1e-4
       dvg: 5e-1
+      n_iters: 10
       network:
         d_in: 3
         d_out: 24

@@ -153,3 +153,4 @@ lib/smpl/smpl_model
 .metadata
 
 lsf.*
+*.obj

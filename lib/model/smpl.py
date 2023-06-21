@@ -5,7 +5,7 @@ from lib.smpl.body_models import SMPL
 
 class SMPLServer(torch.nn.Module):
 
-    def __init__(self, gender='neutral', betas=None, v_template=None):
+    def __init__(self, gender='neutral', betas=None, v_template=None, cano_pose='Da'):
         super().__init__()
 
 
@@ -34,8 +34,14 @@ class SMPLServer(torch.nn.Module):
         # define the canonical pose
         param_canonical = torch.zeros((1, 86),dtype=torch.float32).cuda()
         param_canonical[0, 0] = 1
-        param_canonical[0, 9] = np.pi / 6
-        param_canonical[0, 12] = -np.pi / 6
+        if cano_pose == 'Da':
+            param_canonical[0, 9] = np.pi / 6
+            param_canonical[0, 12] = -np.pi / 6
+        elif cano_pose == 'T':
+            pass
+        else:
+            raise ValueError('Unknown canonical pose: {}'.format(cano_pose))
+        
         if self.betas is not None and self.v_template is None:
             param_canonical[0,-10:] = self.betas
         self.param_canonical = param_canonical

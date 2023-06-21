@@ -272,6 +272,7 @@ __global__ void broyden_kernel(
                               const index_t n_batch,
                               const index_t n_point,
                               const index_t n_init,
+                              const index_t n_iter,
                                TensorInfo<scalar_t, index_t> voxel_ti,
                                TensorInfo<scalar_t, index_t> voxel_J_ti,
                                PackedTensorAccessor32<scalar_t, 4> x, // shape=(N,200000, 9, 3)
@@ -298,7 +299,9 @@ __global__ void broyden_kernel(
   const index_t i_point = (index % (n_point*n_init)) / n_init;
   const index_t i_init = (index %  (n_point*n_init)) % n_init;
  
-
+  if(!is_valid[i_batch][i_point][i_init]){
+    return;
+  }
   scalar_t gx[3];
   scalar_t gx_new[3];
 
@@ -354,7 +357,7 @@ __global__ void broyden_kernel(
   J_inv_local[3*1 + 2] = J_local[4*2 + 1];
   J_inv_local[3*2 + 2] = J_local[4*2 + 2];
   
-  for(int i=0; i<10; i++) {
+  for(int i=0; i<n_iter; i++) {
 
     scalar_t J00 = J_inv_local[3*0 + 0]; 
     scalar_t J01 = J_inv_local[3*0 + 1];
@@ -498,7 +501,7 @@ __global__ void broyden_kernel(
     fuse_J_inv_update(index, J_inv_local, delta_x_0, delta_x_1, delta_x_2, delta_gx_0, delta_gx_1, delta_gx_2);
 
   }
-
+  is_valid[i_batch][i_point][i_init] = false;
   
 
 }
@@ -517,7 +520,8 @@ void launch_broyden_kernel(
     const Tensor& offset,
     const Tensor& scale,
     float cvg_threshold,
-    float dvg_threshold) {
+    float dvg_threshold,
+    int64_t n_iter) {
 
   // calculate #threads required
   int64_t n_batch = xd_tgt.size(0);
@@ -534,6 +538,7 @@ void launch_broyden_kernel(
                                             static_cast<int>(n_batch),
                                             static_cast<int>(n_point),
                                             static_cast<int>(n_init),
+                                            static_cast<int>(n_iter),
                                             getTensorInfo<scalar_t, int>(voxel),
                                             getTensorInfo<scalar_t, int>(grid_J_inv),
                                             x.packed_accessor32<scalar_t, 4>(),

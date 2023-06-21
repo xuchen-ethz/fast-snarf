@@ -21,7 +21,8 @@ void launch_broyden_kernel(torch::Tensor &x,
                            const torch::Tensor& offset,
                            const torch::Tensor& scale,
                            float cvg_threshold,
-                           float dvg_threshold);
+                           float dvg_threshold,
+                           int64_t n_iter);
 
 
 void fuse_broyden(torch::Tensor &x,
@@ -36,10 +37,11 @@ void fuse_broyden(torch::Tensor &x,
                   torch::Tensor& offset,
                   torch::Tensor& scale,
                   float cvg_threshold,
-                  float dvg_threshold) {
+                  float dvg_threshold,
+                  int n_iters) {
 
 
-  launch_broyden_kernel(x, xd_tgt, grid, grid_J_inv, tfs, bone_ids, align_corners, J_inv, is_valid, offset, scale, cvg_threshold, dvg_threshold);
+  launch_broyden_kernel(x, xd_tgt, grid, grid_J_inv, tfs, bone_ids, align_corners, J_inv, is_valid, offset, scale, cvg_threshold, dvg_threshold,n_iters);
   return;
 }
 

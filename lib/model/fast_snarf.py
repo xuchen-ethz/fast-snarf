@@ -3,9 +3,10 @@ import torch.nn.functional as F
 
 
 from lib.model.network import ImplicitNetwork
-from lib.model.helpers import hierarchical_softmax, skinning, bmv, create_voxel_grid, query_weights_smpl
+from lib.model.helpers import hierarchical_softmax, skinning, bmv, create_voxel_grid, query_weights_smpl,query_weights_smpl_smooth
 from torch.utils.cpp_extension import load
 import os
+import numpy as np
 
 cuda_dir = os.path.join(os.path.dirname(__file__), "../cuda")
 fuse_kernel = load(name='fuse_cuda',
@@ -36,7 +37,6 @@ class ForwardDeformer(torch.nn.Module):
         self.opt = opt
 
         self.init_bones = [0, 1, 2, 4, 5, 16, 17, 18, 19] 
-
         self.init_bones_cuda = torch.tensor(self.init_bones).cuda().int()
 
         # convert to voxel grid
@@ -60,6 +60,9 @@ class ForwardDeformer(torch.nn.Module):
             self.lbs_voxel_final = query_weights_smpl(self.grid_denorm, smpl_verts, smpl_server.weights_c)
             self.lbs_voxel_final = self.lbs_voxel_final.permute(0,2,1).reshape(1,-1,d,h,w)
 
+        elif self.opt.skinning_mode == 'preset_smooth':
+            self.lbs_voxel_final = query_weights_smpl_smooth(self.grid_denorm, smpl_verts, smpl_server.weights_c)
+
         elif self.opt.skinning_mode == 'voxel':
             lbs_voxel = 0.001 * torch.ones((1, 24, d, h, w), dtype=self.grid_denorm.dtype, device=self.grid_denorm.device)
             self.register_parameter('lbs_voxel', torch.nn.Parameter(lbs_voxel,requires_grad=True))
@@ -70,7 +73,7 @@ class ForwardDeformer(torch.nn.Module):
         else:
             raise NotImplementedError('Unsupported Deformer.')
 
-    def forward(self, xd, cond, tfs, eval_mode=False):
+    def forward(self, xd, cond, tfs, mask=None, eval_mode=False):
         """Given deformed point return its caonical correspondence
 
         Args:
@@ -83,7 +86,7 @@ class ForwardDeformer(torch.nn.Module):
             others (dict): other useful outputs.
         """
 
-        xc_opt, others = self.search(xd, cond, tfs, eval_mode=eval_mode)
+        xc_opt, others = self.search(xd, cond, tfs, mask=mask, eval_mode=eval_mode)
 
         if eval_mode or self.opt.skinning_mode == 'preset':
             return xc_opt, others
@@ -127,7 +130,7 @@ class ForwardDeformer(torch.nn.Module):
 
         return voxel_d, voxel_J
 
-    def search(self, xd, cond, tfs, eval_mode=False):
+    def search(self, xd, cond, tfs, mask=None, eval_mode=False):
         """Search correspondences.
 
         Args:
@@ -145,9 +148,11 @@ class ForwardDeformer(torch.nn.Module):
 
         # run broyden without grad
         with torch.no_grad():
-            result = self.broyden_cuda(xd, voxel_d, voxel_J, tfs, 
+            result = self.broyden_cuda(xd, voxel_d, voxel_J, tfs,
+                                    mask=mask, 
                                     cvg_thresh=self.opt.cvg,
-                                    dvg_thresh=self.opt.dvg)
+                                    dvg_thresh=self.opt.dvg,
+                                    n_iters=self.opt.n_iters)
 
         return result['result'], result
 
@@ -157,8 +162,10 @@ class ForwardDeformer(torch.nn.Module):
                     voxel,
                     voxel_J_inv,
                     tfs,
+                    mask=None,
                     cvg_thresh=1e-4,
-                    dvg_thresh=1):
+                    dvg_thresh=1,
+                    n_iters=10):
         """
         Args:
             g:     f: (N, 3, 1) -> (N, 3, 1)
@@ -173,14 +180,16 @@ class ForwardDeformer(torch.nn.Module):
 
         J_inv = torch.zeros((b,n,n_init,3,3),device=xd_tgt.device,dtype=torch.float)
 
-        is_valid = torch.zeros((b,n,n_init),device=xd_tgt.device,dtype=torch.bool)
+        if mask is None:
+            is_valid = torch.ones((b,n,n_init),device=xd_tgt.device,dtype=torch.bool)
+        else:
+            is_valid = mask.expand(b,n,n_init).clone()
 
-        fuse_kernel.fuse_broyden(xc, xd_tgt, voxel, voxel_J_inv, tfs, self.init_bones_cuda, self.opt.align_corners, J_inv, is_valid, self.offset, self.scale, cvg_thresh, dvg_thresh)
+        fuse_kernel.fuse_broyden(xc, xd_tgt, voxel, voxel_J_inv, tfs, self.init_bones_cuda, self.opt.align_corners, J_inv, is_valid, self.offset, self.scale, cvg_thresh, dvg_thresh, n_iters)
 
         mask = filter_cuda.filter(xc, is_valid)
 
         return {"result": xc, 'valid_ids': mask, 'J_inv': J_inv}
-
 
     def forward_skinning(self, xc, cond, tfs, mask=None):
         """Canonical point -> deformed point

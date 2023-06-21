@@ -1,7 +1,7 @@
 # Fast-SNARF: A Fast Deformer for Articulated Neural Fields
 ## [Paper](https://dataset.ait.ethz.ch/downloads/fast-snarf/paper.pdf) 
 
-<img src="assets/teaser.png"  height="250"/> 
+<img src="assets/teaser.png"  height="250"/> \
 <img src="assets/1.gif" width="250" height="250"/> 
 
 Fast-SNARF models the articulation of neural fields. It allows learning articulated objects from deformed observations, such as 3D posed meshes, in an accurate and fast way. In particular, Fast-SNARF achieves similar accuracy as its parent [SNARF](https://github.com/xuchen-ethz/SNARF) while being 150x faster. 
